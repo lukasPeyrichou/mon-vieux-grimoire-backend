@@ -1,5 +1,12 @@
 // Application Express : middlewares globaux et branchement des routes
 const express = require('express');
+const mongoose = require('mongoose');
+
+// Connexion à la base MongoDB (l'adresse, qui contient le mot de passe, reste dans .env)
+mongoose
+  .connect(process.env.MONGODB_URI)
+  .then(() => console.log('Connexion à MongoDB réussie !'))
+  .catch((error) => console.error('Connexion à MongoDB échouée :', error.message));
 
 const app = express();
 
