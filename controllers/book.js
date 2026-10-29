@@ -107,6 +107,37 @@ exports.modifyBook = (req, res) => {
     });
 };
 
+// POST /api/books/:id/rating : ajoute la note de l'utilisateur connecté et met à jour la moyenne
+exports.rateBook = (req, res) => {
+  // La note est celle du token, pas le userId du corps : impossible de noter au nom d'un autre
+  const { userId } = req.auth;
+  const grade = req.body.rating;
+
+  if (typeof grade !== 'number' || grade < 0 || grade > 5) {
+    return res.status(400).json({ error: 'La note doit être un nombre compris entre 0 et 5 !' });
+  }
+
+  Book.findOne({ _id: req.params.id })
+    .then((book) => {
+      if (!book) {
+        return res.status(404).json({ error: 'Livre introuvable !' });
+      }
+      // Une seule note par utilisateur, et une note ne peut pas être modifiée
+      if (book.ratings.some((rating) => rating.userId === userId)) {
+        return res.status(400).json({ error: 'Vous avez déjà noté ce livre !' });
+      }
+
+      book.ratings.push({ userId, grade });
+      const total = book.ratings.reduce((sum, rating) => sum + rating.grade, 0);
+      // Arrondie à une décimale : le front affiche « 3.7/5 » plutôt que « 3.6666666666666665/5 »
+      book.averageRating = Math.round((total / book.ratings.length) * 10) / 10;
+
+      // Le livre mis à jour est renvoyé, comme l'attendent les spécifications
+      return book.save().then((savedBook) => res.status(200).json(savedBook));
+    })
+    .catch((error) => res.status(400).json({ error }));
+};
+
 // DELETE /api/books/:id : supprime un livre et son image
 exports.deleteBook = (req, res) => {
   Book.findOne({ _id: req.params.id })
