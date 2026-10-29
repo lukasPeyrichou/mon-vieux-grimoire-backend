@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 
 const userRoutes = require('./routes/user');
+const bookRoutes = require('./routes/book');
 
 // Neutralise les opérateurs MongoDB ($ne, $gt...) glissés dans les données reçues :
 // sans ça, { "email": { "$ne": null } } au login trouverait le premier utilisateur venu
@@ -31,5 +32,6 @@ app.use((req, res, next) => {
 });
 
 app.use('/api/auth', userRoutes);
+app.use('/api/books', bookRoutes);
 
 module.exports = app;
