@@ -1,12 +1,11 @@
-// Routes d'authentification, montées sur /api/auth dans app.js
+// Routes /api/auth
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const userCtrl = require('../controllers/user');
 
 const router = express.Router();
 
-// Contre les attaques par force brute (essayer des milliers de mots de passe) :
-// 20 tentatives maximum par adresse IP toutes les 15 minutes
+// Anti force brute : 20 tentatives par IP toutes les 15 min
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,

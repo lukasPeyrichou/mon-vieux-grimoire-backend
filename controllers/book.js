@@ -3,36 +3,33 @@ const fs = require('fs');
 const path = require('path');
 const Book = require('../models/Book');
 
-// Supprime une image du dossier images/ ; une image déjà absente n'est pas une erreur.
-// path.basename ne garde que le nom du fichier : un nom piégé comme « ../.env » ne peut
-// jamais faire supprimer un fichier en dehors de images/
+// Supprime une image de images/ (absente = pas d'erreur) ; path.basename empêche
+// de sortir du dossier (« ../.env »)
 const removeImage = (filename) => {
   fs.unlink(path.join(__dirname, '..', 'images', path.basename(filename)), () => {});
 };
 
-// Retrouve le nom du fichier à partir de l'adresse complète enregistrée en base
+// Nom du fichier depuis l'imageUrl
 const imageFilename = (imageUrl) => imageUrl.split('/images/')[1];
 
-// POST /api/books : crée un livre à partir du formulaire (texte JSON + image)
+// POST /api/books : livre (texte JSON) + image
 exports.createBook = (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Une image est requise !' });
   }
   let bookObject;
   try {
-    // Avec multer, le livre arrive sous forme de texte JSON dans req.body.book
+    // Avec multer, le livre arrive en texte dans req.body.book
     bookObject = JSON.parse(req.body.book);
   } catch (error) {
     removeImage(req.file.filename);
     return res.status(400).json({ error: error.message });
   }
-  // On ne fait jamais confiance au userId envoyé par le client : on prend celui du token
+  // Le userId vient du token, jamais du client
   delete bookObject._id;
   delete bookObject.userId;
 
-  // Le formulaire de création propose de noter le livre : on garde cette note si elle est
-  // entre 1 et 5 étoiles. Sinon (aucune étoile), notes vides et moyenne à 0 comme le
-  // demandent les spécifications.
+  // Note initiale gardée si entre 1 et 5, sinon aucune note et moyenne à 0
   const grade = Number(bookObject.ratings?.[0]?.grade);
   const hasGrade = grade >= 1 && grade <= 5;
 
@@ -48,38 +45,36 @@ exports.createBook = (req, res) => {
     .save()
     .then(() => res.status(201).json({ message: 'Livre enregistré !' }))
     .catch((error) => {
-      // Livre refusé (champ manquant...) : l'image déjà enregistrée ne sert plus à rien
+      // Livre refusé : on supprime l'image
       removeImage(req.file.filename);
       res.status(400).json({ error });
     });
 };
 
-// PUT /api/books/:id : modifie un livre, avec ou sans nouvelle image
+// PUT /api/books/:id : avec ou sans nouvelle image
 exports.modifyBook = (req, res) => {
   let received;
   try {
-    // Avec une nouvelle image, le livre est en texte dans req.body.book ; sans image, directement dans req.body
-    // (avec Express 5, req.body vaut undefined si la requête n'a pas de corps)
+    // Avec image : texte dans req.body.book ; sans : req.body (undefined sans corps en Express 5)
     received = req.file ? JSON.parse(req.body.book) : req.body || {};
   } catch (error) {
     removeImage(req.file.filename);
     return res.status(400).json({ error: error.message });
   }
 
-  // Liste blanche : on ne recopie QUE les champs modifiables. Tout le reste (userId, ratings,
-  // averageRating, imageUrl, ou un opérateur MongoDB comme « $set ») est ignoré.
+  // Liste blanche : seuls ces champs sont modifiables
   const bookObject = {};
   ['title', 'author', 'year', 'genre'].forEach((field) => {
     if (received[field] !== undefined) {
       bookObject[field] = received[field];
     }
   });
-  // Seul le serveur fixe l'adresse de l'image, et seulement si un nouveau fichier a été envoyé
+  // imageUrl fixée par le serveur, seulement avec un nouveau fichier
   if (req.file) {
     bookObject.imageUrl = `${req.protocol}://${req.get('host')}/images/${req.file.filename}`;
   }
 
-  // En cas d'échec, la nouvelle image envoyée ne doit pas rester orpheline sur le disque
+  // En cas d'échec, supprime la nouvelle image
   const cancelUpload = () => req.file && removeImage(req.file.filename);
 
   Book.findOne({ _id: req.params.id })
@@ -88,14 +83,14 @@ exports.modifyBook = (req, res) => {
         cancelUpload();
         return res.status(404).json({ error: 'Livre introuvable !' });
       }
-      // Seul le créateur du livre peut le modifier
+      // Réservé au créateur
       if (book.userId !== req.auth.userId) {
         cancelUpload();
         return res.status(403).json({ message: '403: unauthorized request' });
       }
-      // runValidators : les règles du modèle (champs requis, types) s'appliquent aussi aux modifications
+      // runValidators : applique les règles du modèle
       return Book.updateOne({ _id: req.params.id }, { $set: bookObject }, { runValidators: true }).then(() => {
-        // La nouvelle image remplace l'ancienne, qu'on supprime du disque
+        // Supprime l'ancienne image
         if (req.file) {
           removeImage(imageFilename(book.imageUrl));
         }
@@ -108,9 +103,9 @@ exports.modifyBook = (req, res) => {
     });
 };
 
-// POST /api/books/:id/rating : ajoute la note de l'utilisateur connecté et met à jour la moyenne
+// POST /api/books/:id/rating : ajoute la note et recalcule la moyenne
 exports.rateBook = (req, res) => {
-  // La note est celle du token, pas le userId du corps : impossible de noter au nom d'un autre
+  // userId du token : impossible de noter au nom d'un autre
   const { userId } = req.auth;
   const grade = req.body?.rating;
 
@@ -123,23 +118,23 @@ exports.rateBook = (req, res) => {
       if (!book) {
         return res.status(404).json({ error: 'Livre introuvable !' });
       }
-      // Une seule note par utilisateur, et une note ne peut pas être modifiée
+      // Une seule note par utilisateur, non modifiable
       if (book.ratings.some((rating) => rating.userId === userId)) {
         return res.status(400).json({ error: 'Vous avez déjà noté ce livre !' });
       }
 
       book.ratings.push({ userId, grade });
       const total = book.ratings.reduce((sum, rating) => sum + rating.grade, 0);
-      // Arrondie à une décimale : le front affiche « 3.7/5 » plutôt que « 3.6666666666666665/5 »
+      // Arrondie à une décimale
       book.averageRating = Math.round((total / book.ratings.length) * 10) / 10;
 
-      // Le livre mis à jour est renvoyé, comme l'attendent les spécifications
+      // Renvoie le livre mis à jour
       return book.save().then((savedBook) => res.status(200).json(savedBook));
     })
     .catch((error) => res.status(400).json({ error }));
 };
 
-// DELETE /api/books/:id : supprime un livre et son image
+// DELETE /api/books/:id : livre et image
 exports.deleteBook = (req, res) => {
   Book.findOne({ _id: req.params.id })
     .then((book) => {
@@ -164,7 +159,7 @@ exports.getAllBooks = (req, res) => {
     .catch((error) => res.status(400).json({ error }));
 };
 
-// GET /api/books/:id : un seul livre
+// GET /api/books/:id
 exports.getOneBook = (req, res) => {
   Book.findOne({ _id: req.params.id })
     .then((book) => {
@@ -173,13 +168,13 @@ exports.getOneBook = (req, res) => {
       }
       res.status(200).json(book);
     })
-    // Un id mal formé produit une CastError de Mongoose
+    // Id mal formé (CastError)
     .catch((error) => res.status(400).json({ error }));
 };
 
 // GET /api/books/bestrating : les 3 livres les mieux notés
 exports.getBestRating = (req, res) => {
-  // Tri décroissant sur la note moyenne, puis on ne garde que les 3 premiers
+  // Tri par moyenne décroissante
   Book.find()
     .sort({ averageRating: -1 })
     .limit(3)

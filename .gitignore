@@ -1,12 +1,15 @@
 # Dépendances
 node_modules/
 
-# Variables d'environnement (secrets)
+# Secrets
 .env
 
-# Images envoyées par les utilisateurs (on garde seulement le dossier)
+# Images envoyées (on garde le dossier)
 images/*
 !images/.gitkeep
 
 # Logs
 npm-debug.log*
+
+# Identifiants du compte de test
+compte-test.txt

@@ -1,9 +1,9 @@
-// Point d'entrée : crée le serveur HTTP Node et lui confie l'application Express
+// Point d'entrée : serveur HTTP qui sert l'app Express
 require('dotenv').config();
 const http = require('http');
 const app = require('./app');
 
-// Renvoie un port valide, qu'il soit fourni sous forme de nombre ou de chaîne
+// Port valide, nombre ou chaîne
 const normalizePort = (val) => {
   const port = parseInt(val, 10);
 
@@ -19,7 +19,7 @@ const normalizePort = (val) => {
 const port = normalizePort(process.env.PORT || '4000');
 app.set('port', port);
 
-// Gère les erreurs de démarrage du serveur (droits insuffisants, port déjà utilisé)
+// Erreurs de démarrage (droits, port occupé)
 const errorHandler = (error) => {
   if (error.syscall !== 'listen') {
     throw error;

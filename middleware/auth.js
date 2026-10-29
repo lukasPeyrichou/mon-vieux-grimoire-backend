@@ -1,17 +1,17 @@
-// Middleware d'authentification : bloque la requête si le token JWT est absent ou invalide
+// Bloque la requête si le token JWT est absent ou invalide
 const jwt = require('jsonwebtoken');
 
 module.exports = (req, res, next) => {
-  // Sans en-tête, l'erreur JavaScript serait vide une fois convertie en JSON : on l'explicite
+  // Message explicite (l'erreur JS serait vide en JSON)
   if (!req.headers.authorization) {
     return res.status(401).json({ error: 'Requête non authentifiée !' });
   }
   try {
-    // Le front envoie l'en-tête « Authorization: Bearer <token> » : on garde la partie après l'espace
+    // « Bearer <token> »
     const token = req.headers.authorization.split(' ')[1];
-    // Vérifie la signature et la date d'expiration ; lève une erreur sinon
+    // Vérifie signature et expiration
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-    // Rend l'utilisateur connecté disponible pour les contrôleurs (vérification du propriétaire d'un livre)
+    // Sert aux contrôleurs à vérifier le propriétaire
     req.auth = { userId: decodedToken.userId };
     next();
   } catch (error) {

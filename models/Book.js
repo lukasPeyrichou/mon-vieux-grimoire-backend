@@ -1,15 +1,15 @@
-// Modèle Mongoose d'un livre, conforme aux spécifications de l'API
+// Modèle Livre
 const mongoose = require('mongoose');
 
 const bookSchema = mongoose.Schema({
-  // _id MongoDB de l'utilisateur qui a créé le livre (sert à vérifier le propriétaire)
+  // _id du créateur
   userId: { type: String, required: true },
   title: { type: String, required: true },
   author: { type: String, required: true },
   imageUrl: { type: String, required: true },
   year: { type: Number, required: true },
   genre: { type: String, required: true },
-  // Une entrée par utilisateur ayant noté le livre (note de 0 à 5)
+  // Une note (0 à 5) par utilisateur
   ratings: [
     {
       userId: { type: String, required: true },
@@ -18,8 +18,7 @@ const bookSchema = mongoose.Schema({
   ],
   averageRating: { type: Number, default: 0 },
 }, {
-  // Si deux requêtes modifient le même livre en même temps (deux notes envoyées d'un coup),
-  // la seconde sauvegarde échoue au lieu d'écraser la première : pas de double note possible
+  // Sauvegardes simultanées : la seconde échoue au lieu d'écraser (pas de double note)
   optimisticConcurrency: true,
 });
 
