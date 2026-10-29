@@ -21,6 +21,10 @@ const upload = multer({
 
 module.exports = (req, res, next) => {
   upload(req, res, (error) => {
+    // multer répond « File too large » en anglais : on renvoie un message clair pour le front
+    if (error?.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: "L'image ne doit pas dépasser 5 Mo !" });
+    }
     if (error) {
       return res.status(400).json({ error: error.message });
     }
