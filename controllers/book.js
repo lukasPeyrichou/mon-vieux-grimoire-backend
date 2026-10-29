@@ -59,7 +59,8 @@ exports.modifyBook = (req, res) => {
   let received;
   try {
     // Avec une nouvelle image, le livre est en texte dans req.body.book ; sans image, directement dans req.body
-    received = req.file ? JSON.parse(req.body.book) : req.body;
+    // (avec Express 5, req.body vaut undefined si la requête n'a pas de corps)
+    received = req.file ? JSON.parse(req.body.book) : req.body || {};
   } catch (error) {
     removeImage(req.file.filename);
     return res.status(400).json({ error: error.message });
@@ -111,7 +112,7 @@ exports.modifyBook = (req, res) => {
 exports.rateBook = (req, res) => {
   // La note est celle du token, pas le userId du corps : impossible de noter au nom d'un autre
   const { userId } = req.auth;
-  const grade = req.body.rating;
+  const grade = req.body?.rating;
 
   if (typeof grade !== 'number' || grade < 0 || grade > 5) {
     return res.status(400).json({ error: 'La note doit être un nombre compris entre 0 et 5 !' });

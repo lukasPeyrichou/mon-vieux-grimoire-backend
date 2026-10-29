@@ -4,7 +4,8 @@ const mongoose = require('mongoose');
 const uniqueValidator = require('mongoose-unique-validator').default;
 
 const userSchema = mongoose.Schema({
-  email: { type: String, required: true, unique: true },
+  // match : refuse ce qui n'a pas la forme d'une adresse e-mail (texte@texte.texte)
+  email: { type: String, required: true, unique: true, match: /^\S+@\S+\.\S+$/ },
   // On ne stocke jamais le mot de passe en clair, seulement son hachage (bcrypt, étape suivante)
   password: { type: String, required: true },
 });

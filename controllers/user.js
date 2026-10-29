@@ -5,12 +5,18 @@ const User = require('../models/User');
 
 // POST /api/auth/signup : hache le mot de passe puis enregistre l'utilisateur
 exports.signup = (req, res) => {
+  // (avec Express 5, req.body vaut undefined si la requête n'a pas de corps)
+  const { email, password } = req.body || {};
+  // bcrypt accepterait de hacher une chaîne vide : on refuse un mot de passe vide
+  if (typeof password !== 'string' || password.length === 0) {
+    return res.status(400).json({ error: 'Le mot de passe est requis !' });
+  }
   // 10 tours de salage : bon compromis entre sécurité et temps de calcul
   bcrypt
-    .hash(req.body.password, 10)
+    .hash(password, 10)
     .then((hash) => {
       const user = new User({
-        email: req.body.email,
+        email,
         password: hash,
       });
       return user.save();
@@ -22,13 +28,17 @@ exports.signup = (req, res) => {
 
 // POST /api/auth/login : vérifie les identifiants et renvoie un token signé
 exports.login = (req, res) => {
-  User.findOne({ email: req.body.email })
+  const { email, password } = req.body || {};
+  if (typeof email !== 'string' || typeof password !== 'string') {
+    return res.status(400).json({ error: 'E-mail et mot de passe requis !' });
+  }
+  User.findOne({ email })
     .then((user) => {
       // Même message que pour un mauvais mot de passe : on ne révèle pas quels e-mails existent
       if (!user) {
         return res.status(401).json({ message: 'Paire identifiant/mot de passe incorrecte' });
       }
-      return bcrypt.compare(req.body.password, user.password).then((valid) => {
+      return bcrypt.compare(password, user.password).then((valid) => {
         if (!valid) {
           return res.status(401).json({ message: 'Paire identifiant/mot de passe incorrecte' });
         }
