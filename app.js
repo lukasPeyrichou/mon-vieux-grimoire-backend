@@ -2,6 +2,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 
+const userRoutes = require('./routes/user');
+
 // Connexion à la base MongoDB (l'adresse, qui contient le mot de passe, reste dans .env)
 mongoose
   .connect(process.env.MONGODB_URI)
@@ -24,9 +26,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Route temporaire de l'étape 1.1 pour vérifier que le serveur répond
-app.use((req, res) => {
-  res.json({ message: 'Votre requête a bien été reçue !' });
-});
+app.use('/api/auth', userRoutes);
 
 module.exports = app;
