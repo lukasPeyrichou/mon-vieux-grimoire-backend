@@ -4,6 +4,10 @@ const mongoose = require('mongoose');
 
 const userRoutes = require('./routes/user');
 
+// Neutralise les opérateurs MongoDB ($ne, $gt...) glissés dans les données reçues :
+// sans ça, { "email": { "$ne": null } } au login trouverait le premier utilisateur venu
+mongoose.set('sanitizeFilter', true);
+
 // Connexion à la base MongoDB (l'adresse, qui contient le mot de passe, reste dans .env)
 mongoose
   .connect(process.env.MONGODB_URI)
