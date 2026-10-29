@@ -56,28 +56,27 @@ exports.createBook = (req, res) => {
 
 // PUT /api/books/:id : modifie un livre, avec ou sans nouvelle image
 exports.modifyBook = (req, res) => {
-  let bookObject;
+  let received;
   try {
     // Avec une nouvelle image, le livre est en texte dans req.body.book ; sans image, directement dans req.body
-    bookObject = req.file
-      ? {
-          ...JSON.parse(req.body.book),
-          imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`,
-        }
-      : { ...req.body };
+    received = req.file ? JSON.parse(req.body.book) : req.body;
   } catch (error) {
     removeImage(req.file.filename);
     return res.status(400).json({ error: error.message });
   }
-  // Champs que la modification ne doit pas pouvoir changer : propriétaire, notes, et l'image
-  // si aucun fichier n'est envoyé (seul le serveur fixe imageUrl)
-  if (!req.file) {
-    delete bookObject.imageUrl;
+
+  // Liste blanche : on ne recopie QUE les champs modifiables. Tout le reste (userId, ratings,
+  // averageRating, imageUrl, ou un opérateur MongoDB comme « $set ») est ignoré.
+  const bookObject = {};
+  ['title', 'author', 'year', 'genre'].forEach((field) => {
+    if (received[field] !== undefined) {
+      bookObject[field] = received[field];
+    }
+  });
+  // Seul le serveur fixe l'adresse de l'image, et seulement si un nouveau fichier a été envoyé
+  if (req.file) {
+    bookObject.imageUrl = `${req.protocol}://${req.get('host')}/images/${req.file.filename}`;
   }
-  delete bookObject._id;
-  delete bookObject.userId;
-  delete bookObject.ratings;
-  delete bookObject.averageRating;
 
   // En cas d'échec, la nouvelle image envoyée ne doit pas rester orpheline sur le disque
   const cancelUpload = () => req.file && removeImage(req.file.filename);
@@ -94,7 +93,7 @@ exports.modifyBook = (req, res) => {
         return res.status(403).json({ message: '403: unauthorized request' });
       }
       // runValidators : les règles du modèle (champs requis, types) s'appliquent aussi aux modifications
-      return Book.updateOne({ _id: req.params.id }, { ...bookObject }, { runValidators: true }).then(() => {
+      return Book.updateOne({ _id: req.params.id }, { $set: bookObject }, { runValidators: true }).then(() => {
         // La nouvelle image remplace l'ancienne, qu'on supprime du disque
         if (req.file) {
           removeImage(imageFilename(book.imageUrl));
