@@ -17,6 +17,10 @@ const bookSchema = mongoose.Schema({
     },
   ],
   averageRating: { type: Number, default: 0 },
+}, {
+  // Si deux requêtes modifient le même livre en même temps (deux notes envoyées d'un coup),
+  // la seconde sauvegarde échoue au lieu d'écraser la première : pas de double note possible
+  optimisticConcurrency: true,
 });
 
 module.exports = mongoose.model('Book', bookSchema);

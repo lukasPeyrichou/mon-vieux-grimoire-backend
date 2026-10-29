@@ -2,6 +2,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const path = require('path');
+const helmet = require('helmet');
 
 const userRoutes = require('./routes/user');
 const bookRoutes = require('./routes/book');
@@ -17,6 +18,10 @@ mongoose
   .catch((error) => console.error('Connexion à MongoDB échouée :', error.message));
 
 const app = express();
+
+// En-têtes HTTP de sécurité. crossOriginResourcePolicy est assoupli pour que le front,
+// servi sur un autre port (3000), puisse afficher les images de l'API (4000)
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 // Transforme le corps des requêtes JSON en objet JavaScript (req.body)
 app.use(express.json());
