@@ -3,9 +3,11 @@ const fs = require('fs');
 const path = require('path');
 const Book = require('../models/Book');
 
-// Supprime une image du dossier images/ ; une image déjà absente n'est pas une erreur
+// Supprime une image du dossier images/ ; une image déjà absente n'est pas une erreur.
+// path.basename ne garde que le nom du fichier : un nom piégé comme « ../.env » ne peut
+// jamais faire supprimer un fichier en dehors de images/
 const removeImage = (filename) => {
-  fs.unlink(path.join(__dirname, '..', 'images', filename), () => {});
+  fs.unlink(path.join(__dirname, '..', 'images', path.basename(filename)), () => {});
 };
 
 // Retrouve le nom du fichier à partir de l'adresse complète enregistrée en base
@@ -67,7 +69,11 @@ exports.modifyBook = (req, res) => {
     removeImage(req.file.filename);
     return res.status(400).json({ error: error.message });
   }
-  // Champs que la modification ne doit pas pouvoir changer : propriétaire et notes
+  // Champs que la modification ne doit pas pouvoir changer : propriétaire, notes, et l'image
+  // si aucun fichier n'est envoyé (seul le serveur fixe imageUrl)
+  if (!req.file) {
+    delete bookObject.imageUrl;
+  }
   delete bookObject._id;
   delete bookObject.userId;
   delete bookObject.ratings;
