@@ -12,6 +12,15 @@ const removeImage = (filename) => {
 // Nom du fichier depuis l'imageUrl
 const imageFilename = (imageUrl) => imageUrl.split('/images/')[1];
 
+// Livre reçu en texte ; JSON valide mais pas un objet (« null », « 12 ») = refusé
+const parseBook = (text) => {
+  const book = JSON.parse(text);
+  if (book === null || typeof book !== 'object' || Array.isArray(book)) {
+    throw new Error('Le livre doit être un objet JSON !');
+  }
+  return book;
+};
+
 // POST /api/books : livre (texte JSON) + image
 exports.createBook = (req, res) => {
   if (!req.file) {
@@ -20,7 +29,7 @@ exports.createBook = (req, res) => {
   let bookObject;
   try {
     // Avec multer, le livre arrive en texte dans req.body.book
-    bookObject = JSON.parse(req.body.book);
+    bookObject = parseBook(req.body.book);
   } catch (error) {
     removeImage(req.file.filename);
     return res.status(400).json({ error: error.message });
@@ -56,7 +65,7 @@ exports.modifyBook = (req, res) => {
   let received;
   try {
     // Avec image : texte dans req.body.book ; sans : req.body (undefined sans corps en Express 5)
-    received = req.file ? JSON.parse(req.body.book) : req.body || {};
+    received = req.file ? parseBook(req.body.book) : req.body || {};
   } catch (error) {
     removeImage(req.file.filename);
     return res.status(400).json({ error: error.message });
