@@ -6,7 +6,7 @@
 services:
   # Base MongoDB locale (remplace Atlas en développement)
   mongo:
-    image: mongo:8
+    image: mongo:9
     ports:
       - "27017:27017" # pour ouvrir la base avec MongoDB Compass : mongodb://localhost:27017
     volumes:
