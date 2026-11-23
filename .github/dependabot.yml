@@ -1,0 +1,21 @@
+# Dependabot : GitHub vérifie chaque semaine si une dépendance a une nouvelle
+# version ou une faille connue, et ouvre une pull request pour la mettre à jour.
+# Avant de fusionner : lancer `npm test` sur la branche de la PR.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      outils-de-dev:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+
+  # Images de docker-compose.yml (mongo:8, node:22)
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "monthly"
