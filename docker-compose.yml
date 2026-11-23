@@ -20,7 +20,7 @@ services:
 
   # API Express
   api:
-    image: node:22
+    image: node:26
     working_dir: /app
     # Installe les dépendances DANS le conteneur (sharp et bcrypt ont du code compilé
     # propre à Linux), puis lance nodemon. --legacy-watch : sous Windows, les modifications
