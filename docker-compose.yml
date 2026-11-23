@@ -1,0 +1,45 @@
+# Environnement de développement en conteneurs : l'API Node + une base MongoDB locale.
+# Lancer :   docker compose up        (Ctrl+C pour arrêter)
+# Arrêter et effacer la base :  docker compose down -v
+# Pas besoin d'Atlas ni de Node installé sur la machine : seulement Docker Desktop.
+
+services:
+  # Base MongoDB locale (remplace Atlas en développement)
+  mongo:
+    image: mongo:8
+    ports:
+      - "27017:27017" # pour ouvrir la base avec MongoDB Compass : mongodb://localhost:27017
+    volumes:
+      - mongo-data:/data/db # les données survivent à un redémarrage des conteneurs
+    healthcheck:
+      # L'API ne démarre que quand la base répond
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # API Express
+  api:
+    image: node:22
+    working_dir: /app
+    # Installe les dépendances DANS le conteneur (sharp et bcrypt ont du code compilé
+    # propre à Linux), puis lance nodemon. --legacy-watch : sous Windows, les modifications
+    # des fichiers ne sont vues dans le conteneur qu'en surveillant par intervalles.
+    command: sh -c "npm ci && npx nodemon --legacy-watch server.js"
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: "4000"
+      # « mongo » = nom du service ci-dessus : Docker le résout comme un nom de machine
+      MONGODB_URI: mongodb://mongo:27017/mon-vieux-grimoire
+      # Reprend JWT_SECRET du fichier .env s'il existe, sinon une valeur de développement
+      JWT_SECRET: ${JWT_SECRET:-secret-de-developpement-a-ne-pas-utiliser-en-production}
+    volumes:
+      - .:/app # le code de la machine est partagé avec le conteneur (modifs prises en compte)
+      - /app/node_modules # node_modules reste propre au conteneur (binaires Linux)
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo-data:

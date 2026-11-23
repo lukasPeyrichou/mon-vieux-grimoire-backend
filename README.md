@@ -47,6 +47,41 @@ La console doit afficher `Listening on port 4000` puis `Connexion à MongoDB ré
 Lancer ensuite le front dans un second terminal (`cd frontend`, `npm install`, `npm start`),
 qui s'ouvre sur `http://localhost:3000`.
 
+## Avec Docker (sans Atlas)
+
+Pour développer sans compte Atlas ni Node installé : [Docker Desktop](https://www.docker.com/products/docker-desktop/) suffit.
+
+```bash
+docker compose up          # lance MongoDB + l'API sur http://localhost:4000
+docker compose down        # arrête (les données sont gardées)
+docker compose down -v     # arrête et efface la base
+```
+
+`docker-compose.yml` démarre deux conteneurs : `mongo` (base locale, ouvrable avec MongoDB Compass sur
+`mongodb://localhost:27017`) et `api` (Node 22 + nodemon : chaque modification du code redémarre l'API).
+L'API attend que la base réponde avant de démarrer. Le `.env` n'est pas obligatoire : seul `JWT_SECRET`
+y est repris s'il existe.
+
+## Tests
+
+```bash
+npm test
+```
+
+10 tests **Jest** + **Supertest** dans `tests/api.test.js`. Ils envoient de vraies requêtes HTTP à l'API,
+sur une base MongoDB **temporaire en mémoire** (`mongodb-memory-server`) : la vraie base n'est jamais touchée.
+Au premier lancement, `mongodb-memory-server` télécharge MongoDB (~100 Mo, une seule fois).
+
+| Groupe | Ce qui est vérifié |
+|---|---|
+| Connexion | Mot de passe faux → 401 sans token ; e-mail inconnu → même réponse (n'aide pas à deviner les comptes) ; bons identifiants → token ; mot de passe stocké haché (bcrypt) |
+| Injection NoSQL | `{"$ne": null}` à la connexion → 400 ; `sanitizeFilter` bloque l'opérateur même si un contrôleur oubliait de vérifier le type |
+| Droits sur les livres | Sans token → 401 ; modifier ou supprimer le livre d'un autre → 403 et livre inchangé ; le propriétaire peut modifier → 200 |
+
+Deux réglages servent uniquement aux tests : `babel.config.js` (Jest ne sait pas charger
+`mongoose-unique-validator` v6, publié en module ES, sans conversion) et l'option
+`--experimental-vm-modules` du script `test` (le pilote MongoDB 7 charge un module avec `import()`).
+
 ## Routes
 
 | Méthode | Route | Auth | Rôle |
@@ -76,7 +111,9 @@ backend/
 ├── middleware/
 │   ├── auth.js             vérification du token JWT
 │   └── multer-config.js    réception de l'image + optimisation sharp
-└── images/                 couvertures enregistrées (non versionnées)
+├── images/                 couvertures enregistrées (non versionnées)
+├── tests/api.test.js       tests Jest + Supertest
+└── docker-compose.yml      environnement de dev : API + MongoDB
 ```
 
 ## Sécurité et green code
